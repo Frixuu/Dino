@@ -30,15 +30,6 @@ func injectFields(value reflect.Value, c *Container, chain []DepLink) error {
 			continue
 		}
 
-		if !fieldValue.IsNil() {
-			continue
-		}
-
-		// If a field has already been initialized, don't touch it
-		if !fieldValue.IsZero() {
-			continue
-		}
-
 		field := ty.Field(i)
 		fieldType := field.Type
 
@@ -46,6 +37,10 @@ func injectFields(value reflect.Value, c *Container, chain []DepLink) error {
 		isIf := fieldType.Kind() == reflect.Interface
 		isPtr := fieldType.Kind() == reflect.Pointer && fieldType.Elem().Kind() == reflect.Struct
 		if !isIf && !isPtr {
+			continue
+		}
+
+		if !fieldValue.IsNil() {
 			continue
 		}
 
