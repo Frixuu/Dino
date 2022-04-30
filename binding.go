@@ -35,3 +35,13 @@ func (b *singletonBinding) Provide(c *Container, chain []DepLink) (svc reflect.V
 
 	return
 }
+
+// instanceBinding describes a service that is provided by the user.
+type instanceBinding struct {
+	instance reflect.Value
+}
+
+func (b *instanceBinding) Provide(c *Container, chain []DepLink) (svc reflect.Value, err error) {
+	svc = b.instance
+	return
+}
