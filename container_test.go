@@ -46,10 +46,17 @@ func TestContainerCorrectlyLoadsAndStores(t *testing.T) {
 func TestEmptyContainerErrors(t *testing.T) {
 	type foo struct{}
 	c := &Container{}
+
 	_, err := Get[*foo](c)
 	assert.ErrorAs(t, err, &BindingMissingError{})
 	assert.NotPanics(t, func() {
-		_ = err.Error()
+		assert.Contains(t, err.Error(), "global")
+	})
+
+	_, err = GetNamed[*foo](c, "foobar")
+	assert.ErrorAs(t, err, &BindingMissingError{})
+	assert.NotPanics(t, func() {
+		assert.Contains(t, err.Error(), "foobar")
 	})
 }
 

@@ -55,3 +55,36 @@ func TestInjectingPointerToIfFails(t *testing.T) {
 	err := injectFields(reflect.ValueOf(ptrToMyX), &Container{}, nil)
 	assert.ErrorIs(t, err, ErrPtrNotToStruct)
 }
+
+func TestInjectingSkipsNonNilPointers(t *testing.T) {
+	type iface interface{}
+	type struct1 struct {
+		foo int
+	}
+	type struct2 struct {
+		Set    iface
+		NotSet iface
+	}
+
+	d := &struct1{foo: 4}
+	s := &struct2{Set: d}
+
+	assert.NotNil(t, s.Set)
+	assert.Same(t, d, s.Set)
+	assert.Equal(t, 4, s.Set.(*struct1).foo)
+
+	assert.Nil(t, s.NotSet)
+	assert.NotSame(t, d, s.NotSet)
+
+	c := &Container{}
+	assert.Nil(t, Add[iface, struct1](c))
+	assert.Nil(t, injectFields(reflect.ValueOf(s), c, nil))
+
+	assert.NotNil(t, s.NotSet)
+	assert.NotSame(t, d, s.NotSet)
+	assert.Equal(t, 0, s.NotSet.(*struct1).foo)
+
+	assert.NotNil(t, s.Set)
+	assert.Same(t, d, s.Set)
+	assert.Equal(t, 4, s.Set.(*struct1).foo)
+}
