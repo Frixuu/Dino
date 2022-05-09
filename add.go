@@ -44,6 +44,39 @@ func AddNamed[T any, TImpl any](c *Container, name string) error {
 	return nil
 }
 
+// AddInstance registers an object of type TImpl as a service of type T
+// in the container under a global namespace.
+func AddInstance[T any, TImpl any](c *Container, instance TImpl) error {
+	return AddInstanceNamed[T](c, "", instance)
+}
+
+// AddInstanceNamed registers an object of type TImpl as a service of type T
+// in the container under a provided namespace.
+func AddInstanceNamed[T any, TImpl any](c *Container, name string, instance TImpl) error {
+	t, tImpl := getTypes[T, TImpl]()
+
+	switch t.Kind() {
+	case reflect.Interface:
+		if !reflect.PointerTo(tImpl).Implements(t) && !tImpl.Implements(t) {
+			return NotImplementsError{ifTy: t, actualImplTy: tImpl}
+		}
+	case reflect.Pointer:
+		if t.Elem().Kind() != reflect.Struct {
+			return InvalidServiceTypeError{ty: t}
+		} else if t != tImpl && t.Elem() != tImpl {
+			return BadPointerError{pointerTy: t, structTy: tImpl}
+		}
+	default:
+		return InvalidServiceTypeError{ty: t}
+	}
+
+	c.store(t, name, &instanceBinding{
+		instance: reflect.ValueOf(instance),
+	})
+
+	return nil
+}
+
 // InvalidServiceTypeError occurs when a user wants to register a type,
 // but it does not make sense to register it.
 type InvalidServiceTypeError struct {
