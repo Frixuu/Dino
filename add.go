@@ -22,18 +22,19 @@ func AddNamed[T any, TImpl any](c *Container, name string) error {
 		return ImplNotStructError{ty: tImpl}
 	}
 
-	if t.Kind() != reflect.Interface {
-		if t.Kind() != reflect.Pointer || t.Elem().Kind() != reflect.Struct {
-			return InvalidServiceTypeError{ty: t}
-		} else {
-			if t.Elem() != tImpl {
-				return BadPointerError{pointerTy: t, structTy: tImpl}
-			}
-		}
-	} else {
+	switch t.Kind() {
+	case reflect.Interface:
 		if !reflect.PointerTo(tImpl).Implements(t) {
 			return NotImplementsError{ifTy: t, actualImplTy: tImpl}
 		}
+	case reflect.Pointer:
+		if t.Elem().Kind() != reflect.Struct {
+			return InvalidServiceTypeError{ty: t}
+		} else if t.Elem() != tImpl {
+			return BadPointerError{pointerTy: t, structTy: tImpl}
+		}
+	default:
+		return InvalidServiceTypeError{ty: t}
 	}
 
 	c.store(t, name, &singletonBinding{
