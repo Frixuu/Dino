@@ -45,7 +45,13 @@ func injectFields(value reflect.Value, c *Container, chain []DepLink) error {
 		}
 
 		name := ""
-		// TODO parse struct tag
+		opts, ok := getTagAsMap(field, "dino")
+		if ok {
+			prop, ok := opts["named"]
+			if ok {
+				name = prop
+			}
+		}
 
 		svc, err := c.tryGet(fieldType, name, chain)
 		if err == nil {

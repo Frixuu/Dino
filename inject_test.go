@@ -88,3 +88,32 @@ func TestInjectingSkipsNonNilPointers(t *testing.T) {
 	assert.Same(t, d, s.Set)
 	assert.Equal(t, 4, s.Set.(*struct1).foo)
 }
+
+func TestInjectingNamedSucceeds(t *testing.T) {
+	type foo struct {
+		bar int
+	}
+
+	c := &Container{}
+
+	Add[*foo, foo](c)
+	AddInstanceNamed[*foo](c, "one", &foo{bar: 1})
+	AddInstanceNamed[*foo](c, "two", &foo{bar: 2})
+	AddInstanceNamed[*foo](c, "four", &foo{bar: 4})
+
+	consumer := &struct {
+		A *foo
+		B *foo `dino:"named:one"`
+		C *foo `dino:"named:two"`
+		D *foo `dino:"named:three"`
+		E *foo `dino:"named:four"`
+	}{}
+
+	err := injectFields(reflect.ValueOf(consumer), c, nil)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, consumer.A.bar)
+	assert.Equal(t, 1, consumer.B.bar)
+	assert.Equal(t, 2, consumer.C.bar)
+	assert.Nil(t, consumer.D)
+	assert.Equal(t, 4, consumer.E.bar)
+}
