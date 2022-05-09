@@ -45,6 +45,47 @@ func AddNamed[T any, TImpl any](c *Container, name string) error {
 	return nil
 }
 
+// AddTransient registers a service of type T as a transient in the provided container.
+//
+// In this case, Dino will itself create objects of type TImpl,
+// when requested from a global namespace.
+func AddTransient[T any, TImpl any](c *Container) error {
+	return AddTransientNamed[T, TImpl](c, "")
+}
+
+// AddTransientNamed registers a service of type T as a transient in the provided container.
+//
+// In this case, Dino will itself create objects of type TImpl,
+// when requested from a provided namespace.
+func AddTransientNamed[T any, TImpl any](c *Container, name string) error {
+	t, tImpl := getTypes[T, TImpl]()
+
+	if tImpl.Kind() != reflect.Struct {
+		return ImplNotStructError{ty: tImpl}
+	}
+
+	switch t.Kind() {
+	case reflect.Interface:
+		if !reflect.PointerTo(tImpl).Implements(t) {
+			return NotImplementsError{ifTy: t, actualImplTy: tImpl}
+		}
+	case reflect.Pointer:
+		if t.Elem().Kind() != reflect.Struct {
+			return InvalidServiceTypeError{ty: t}
+		} else if t.Elem() != tImpl {
+			return BadPointerError{pointerTy: t, structTy: tImpl}
+		}
+	default:
+		return InvalidServiceTypeError{ty: t}
+	}
+
+	c.store(t, name, &transientBinding{
+		implType: tImpl,
+	})
+
+	return nil
+}
+
 // AddInstance registers an object of type TImpl as a service of type T
 // in the container under a global namespace.
 func AddInstance[T any, TImpl any](c *Container, instance TImpl) error {

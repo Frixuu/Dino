@@ -126,3 +126,70 @@ func TestAddInstanceStructPtrSucceeds(t *testing.T) {
 	instance.Foo = 6
 	assert.Equal(t, 6, svc.Foo)
 }
+
+func TestAddTransientFailsServiceType(t *testing.T) {
+	var err error
+
+	err = AddTransient[myStruct1, myStruct1](&Container{})
+	assert.NotNil(t, err)
+	assert.ErrorAs(t, err, &InvalidServiceTypeError{})
+
+	err = AddTransient[int, myStruct1](&Container{})
+	assert.NotNil(t, err)
+	assert.ErrorAs(t, err, &InvalidServiceTypeError{})
+
+	err = AddTransient[string, myStruct1](&Container{})
+	assert.NotNil(t, err)
+	assert.ErrorAs(t, err, &InvalidServiceTypeError{})
+
+	err = AddTransient[*myInterface1, myStruct1](&Container{})
+	assert.NotNil(t, err)
+	assert.ErrorAs(t, err, &InvalidServiceTypeError{})
+	assert.Contains(t, err.Error(), "*dino.myInterface1")
+}
+
+func TestAddTransientFailsNotImplements(t *testing.T) {
+	err := AddTransient[myInterface1, myStruct2](&Container{})
+	assert.NotNil(t, err)
+	assert.ErrorAs(t, err, &NotImplementsError{})
+	assert.Regexp(t, "myInterface1.*myStruct2", err.Error())
+}
+
+func TestAddTransientFailsImplNotStruct(t *testing.T) {
+	err := AddTransient[*myStruct1, *myStruct1](&Container{})
+	assert.NotNil(t, err)
+	assert.ErrorAs(t, err, &ImplNotStructError{})
+	assert.Contains(t, err.Error(), "*dino.myStruct1")
+}
+
+func TestAddTransientFailsBadPointer(t *testing.T) {
+	err := AddTransient[*myStruct1, myStruct2](&Container{})
+	assert.NotNil(t, err)
+	assert.ErrorAs(t, err, &BadPointerError{})
+	assert.Contains(t, err.Error(), " dino.myStruct1")
+}
+
+func TestAddTransientErrorsCyclicDependency(t *testing.T) {
+	type (
+		MyIf interface{}
+		X    struct {
+			ZDep MyIf
+		}
+		Y struct {
+			XDep *X
+		}
+		Z struct {
+			YDep *Y
+		}
+	)
+
+	c := &Container{}
+	assert.Nil(t, AddTransient[*X, X](c))
+	assert.Nil(t, AddTransient[*Y, Y](c))
+	assert.Nil(t, AddTransient[MyIf, Z](c))
+
+	_, err := Get[MyIf](c)
+	assert.NotNil(t, err)
+	assert.ErrorAs(t, err, &CyclicDependencyError{})
+	assert.Regexp(t, "MYIF .transient.$", err.Error())
+}

@@ -50,6 +50,8 @@ func injectFields(value reflect.Value, c *Container, chain []DepLink) error {
 		svc, err := c.tryGet(fieldType, name, chain)
 		if err == nil {
 			fieldValue.Set(svc)
+		} else if !errors.As(err, &BindingMissingError{}) {
+			return err
 		}
 	}
 
